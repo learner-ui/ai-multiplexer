@@ -1,0 +1,47 @@
+name: Build Linux Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to upload Linux assets to
+        required: true
+        default: v0.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux-deb:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Linux deb
+        run: npm run build && npx electron-builder --linux deb --x64 --publish never -c.linux.maintainer="AI Multiplexer Contributors <noreply@github.com>"
+
+      - name: Generate Linux checksum
+        run: |
+          cd release
+          sha256sum *.deb *.deb.blockmap latest-linux.yml 2>/dev/null > SHA256SUMS-linux.txt || sha256sum *.deb > SHA256SUMS-linux.txt
+
+      - name: Upload Linux assets to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          shopt -s nullglob
+          assets=(release/*.deb release/*.deb.blockmap release/latest-linux.yml release/SHA256SUMS-linux.txt)
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null || gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "AI Multiplexer ${RELEASE_TAG#v}" --notes "Linux amd64 release assets."
+          gh release upload "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
