@@ -16,7 +16,8 @@
     "test": "vitest run --environment jsdom",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac dmg",
-    "dist:win": "npm run build && electron-builder --win nsis --x64"
+    "dist:win": "npm run build && electron-builder --win nsis --x64",
+    "dist:linux": "npm run build && electron-builder --linux deb --x64 --publish never"
   },
   "build": {
     "appId": "com.aimultiplexer.desktop",
@@ -45,6 +46,22 @@
           ]
         }
       ]
+    },
+    "linux": {
+      "category": "Utility",
+      "maintainer": "AI Multiplexer Contributors <noreply@github.com>",
+      "target": [
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "deb": {
+      "packageCategory": "utils",
+      "priority": "optional"
     },
     "nsis": {
       "oneClick": false,

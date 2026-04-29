@@ -44,7 +44,12 @@ npm run lint
 npm run build
 npm run dist:mac
 npm run dist:win
+npm run dist:linux
 ```
+
+Linux 打包目标：
+
+- `Ubuntu 22.04 / Debian amd64 (.deb)`
 
 ## 下载
 
