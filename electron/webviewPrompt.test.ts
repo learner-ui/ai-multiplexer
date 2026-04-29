@@ -439,14 +439,14 @@ describe('webview prompt injection helpers', () => {
       message: 'read this PDF',
       attachments: [{
         ...makeAttachment('paper.pdf'),
-        path: '/Users/learner/Documents/paper.pdf',
+        path: '/Users/example/Documents/paper.pdf',
       }],
     }, 'https://gemini.google.com/app');
 
     expect(result).toEqual({ ok: true, provider: 'gemini', attachments: { uploaded: 1, method: 'native-file-input' } });
     expect(nativeSetter).toHaveBeenCalledWith(
       expect.any(String),
-      ['/Users/learner/Documents/paper.pdf'],
+      ['/Users/example/Documents/paper.pdf'],
     );
   });
 

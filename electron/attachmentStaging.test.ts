@@ -21,7 +21,7 @@ function makeAttachment(name = 'paper.pdf') {
     type: 'application/pdf',
     size: data.byteLength,
     data,
-    path: `/Users/learner/Documents/${name}`,
+    path: `/Users/example/Documents/${name}`,
   };
 }
 
@@ -39,7 +39,7 @@ describe('attachment staging', () => {
 
     expect(attachment.path).toContain('test-tray');
     expect(attachment.path).toMatch(/paper_name\.pdf$/);
-    expect(attachment.originalPath).toBe('/Users/learner/Documents/paper:name.pdf');
+    expect(attachment.originalPath).toBe('/Users/example/Documents/paper:name.pdf');
     await expect(readFile(attachment.path, 'utf8')).resolves.toBe('hello temporary tray');
   });
 

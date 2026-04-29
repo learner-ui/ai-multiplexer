@@ -1,73 +1,65 @@
-# React + TypeScript + Vite
+# AI Multiplexer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+`AI Multiplexer` 是一个基于 `React + Vite + Electron` 的桌面客户端，用来把同一条问题同时发送给多个 AI 网页助手，并把它们放在同一个工作区里并排比较。
 
-Currently, two official plugins are available:
+当前项目主要目标是做一个真正可用的多模型桌面工作台，而不是单纯的网页壳子。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 适合做什么
 
-## React Compiler
+- 同时向多个 AI 提问，横向对比回答
+- 在一个窗口里管理多个 AI 会话
+- 给支持附件的模型批量发送图片、PDF、文档
+- 把常用模型固定在工作区里，减少来回切网页
+- 为不同模型配置不同账号槽位和独立登录状态
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 当前能力
 
-## Expanding the ESLint configuration
+- Electron 桌面封装，支持持久化登录状态
+- 内嵌多模型 `webview` 工作区
+- 全局输入框广播文本消息
+- 附件聊天文件夹
+  用来保存上传到聊天里的文件，方便手动拖拽给不支持自动接收附件的模型
+- 支持模型示例
+  `ChatGPT`、`Gemini`、`Claude`、`DeepSeek`、`GLM`、`Copilot`、`豆包`、`Grok`
+- 可增删模型面板、调整布局、保存工作区状态
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 已知说明
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- 某些模型网页会频繁改版，因此自动注入输入框和附件逻辑需要持续跟进
+- `Gemini` 目前更适合走“手动从聊天文件夹拖入附件”的方式，文本仍可通过全局输入框发送
+- 安装包会放在 GitHub Releases 中，源码仓库默认不提交大体积构建产物
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 本地开发
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+常用命令：
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm test
+npm run lint
+npm run build
+npm run dist:mac
+npm run dist:win
 ```
+
+## 下载
+
+Releases 页面：
+
+<https://github.com/learner-ui/ai-multiplexer/releases>
+
+## 技术栈
+
+- `React 19`
+- `TypeScript`
+- `Vite`
+- `Electron`
+- `Vitest`
+
+## 项目状态
+
+这个项目目前处于持续迭代中，核心交互已经可用，模型兼容性和发布流程还在持续打磨。

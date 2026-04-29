@@ -58,7 +58,7 @@ describe('GlobalInput', () => {
     window.electronAPI = {
       isElectron: true,
       getWebviewPreloadPath: () => '',
-      getPathForFile: () => '/Users/learner/Documents/paper.pdf',
+      getPathForFile: () => '/Users/example/Documents/paper.pdf',
       broadcastPrompt: vi.fn(),
       broadcastNewChat: vi.fn(),
       openExternal: vi.fn(),
@@ -155,14 +155,14 @@ describe('GlobalInput', () => {
     window.electronAPI = {
       isElectron: true,
       getWebviewPreloadPath: () => '',
-      getPathForFile: () => '/Users/learner/Documents/paper.pdf',
+      getPathForFile: () => '/Users/example/Documents/paper.pdf',
       broadcastPrompt: vi.fn(),
       broadcastNewChat: vi.fn(),
       openExternal: vi.fn(),
       stageAttachments: vi.fn(async (attachments: PromptAttachment[]) => attachments.map((attachment) => ({
         ...attachment,
         originalPath: attachment.path,
-        path: '/Users/learner/AI Attachments/paper.pdf',
+        path: '/Users/example/AI Attachments/paper.pdf',
       }))),
       selectAttachmentFolder: vi.fn(),
       showItemInFolder: vi.fn(),
@@ -218,14 +218,14 @@ describe('GlobalInput', () => {
   });
 
   it('uses the selected user-managed tray folder for new attachments', async () => {
-    const selectedFolder = '/Users/learner/AI Attachments';
+    const selectedFolder = '/Users/example/AI Attachments';
     const stageAttachments = vi.fn(async (attachments: PromptAttachment[]) => attachments);
     const selectAttachmentFolder = vi.fn(async () => selectedFolder);
 
     window.electronAPI = {
       isElectron: true,
       getWebviewPreloadPath: () => '',
-      getPathForFile: () => '/Users/learner/Documents/paper.pdf',
+      getPathForFile: () => '/Users/example/Documents/paper.pdf',
       broadcastPrompt: vi.fn(),
       broadcastNewChat: vi.fn(),
       openExternal: vi.fn(),
@@ -276,7 +276,7 @@ describe('GlobalInput', () => {
   });
 
   it('loads the persisted tray folder on startup', async () => {
-    const selectedFolder = '/Users/learner/Persistent Attachments';
+    const selectedFolder = '/Users/example/Persistent Attachments';
     const stageAttachments = vi.fn(async (attachments: PromptAttachment[]) => attachments);
     window.localStorage.setItem(
       'ai-multiplexer.attachmentTrayFolder.v1',
@@ -286,7 +286,7 @@ describe('GlobalInput', () => {
     window.electronAPI = {
       isElectron: true,
       getWebviewPreloadPath: () => '',
-      getPathForFile: () => '/Users/learner/Documents/paper.pdf',
+      getPathForFile: () => '/Users/example/Documents/paper.pdf',
       broadcastPrompt: vi.fn(),
       broadcastNewChat: vi.fn(),
       openExternal: vi.fn(),

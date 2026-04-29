@@ -59,11 +59,11 @@ describe('attachment payloads', () => {
 
     const result = await createAttachmentPayloads([
       file,
-    ], () => '/Users/learner/Documents/paper.pdf');
+    ], () => '/Users/example/Documents/paper.pdf');
 
     expect(result.attachments[0]).toMatchObject({
       name: 'paper.pdf',
-      path: '/Users/learner/Documents/paper.pdf',
+      path: '/Users/example/Documents/paper.pdf',
     });
   });
 });
