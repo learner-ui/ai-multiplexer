@@ -12,6 +12,8 @@ dist
 dist-ssr
 release
 *.local
+build/icon-*.png
+build/icon.iconset/
 
 # Editor directories and files
 .vscode/*

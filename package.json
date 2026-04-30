@@ -10,6 +10,7 @@
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && npm run electron:dev\"",
     "dev:web": "vite",
     "electron:dev": "cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "icons": "python3 scripts/generate-icons.py",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -24,6 +25,7 @@
     "productName": "AI Multiplexer",
     "files": [
       "dist/**/*",
+      "build/icon.png",
       "electron/**/*.cjs",
       "package.json"
     ],
@@ -33,11 +35,13 @@
     "mac": {
       "identity": null,
       "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
       "target": [
         "dmg"
       ]
     },
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -49,6 +53,7 @@
     },
     "linux": {
       "category": "Utility",
+      "icon": "build/icon.png",
       "maintainer": "AI Multiplexer Contributors <noreply@github.com>",
       "target": [
         {
