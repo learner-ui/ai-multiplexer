@@ -239,7 +239,7 @@ function App() {
       {/* Top Navigation Bar */}
       <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between gap-4 shadow-sm z-10 shrink-0">
         <div className="flex items-center space-x-2">
-          <img src="/app-icon.png" alt="" className="h-7 w-7 rounded-md" />
+          <img src="/app-icon.svg" alt="" className="h-7 w-7 rounded-md" />
           <h1 className="text-lg font-bold text-gray-800">AI Multiplexer</h1>
         </div>
         

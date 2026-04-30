@@ -3,14 +3,14 @@ import os
 import shutil
 import struct
 import subprocess
+import tempfile
 import zlib
-from collections import deque
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD_DIR = os.path.join(ROOT, "build")
 PUBLIC_DIR = os.path.join(ROOT, "public")
 ICONSET_DIR = os.path.join(BUILD_DIR, "icon.iconset")
-SOURCE_PNG = os.path.join(BUILD_DIR, "icon-source.png")
+SOURCE_SVG = os.path.join(BUILD_DIR, "icon-source.svg")
 
 
 def chunk(kind, data):
@@ -130,47 +130,6 @@ def read_png(path):
     return width, height, rgba
 
 
-def remove_edge_background(width, height, pixels, threshold=250):
-    visited = bytearray(width * height)
-    queue = deque()
-
-    def is_background(index):
-        offset = index * 4
-        return pixels[offset + 3] > 0 and max(pixels[offset], pixels[offset + 1], pixels[offset + 2]) <= threshold
-
-    def enqueue(index):
-        if visited[index] or not is_background(index):
-            return
-        visited[index] = 1
-        queue.append(index)
-
-    for x in range(width):
-        enqueue(x)
-        enqueue((height - 1) * width + x)
-    for y in range(height):
-        enqueue(y * width)
-        enqueue(y * width + width - 1)
-
-    while queue:
-        index = queue.popleft()
-        x = index % width
-        y = index // width
-        if x > 0:
-            enqueue(index - 1)
-        if x + 1 < width:
-            enqueue(index + 1)
-        if y > 0:
-            enqueue(index - width)
-        if y + 1 < height:
-            enqueue(index + width)
-
-    for index, is_visited in enumerate(visited):
-        if not is_visited:
-            continue
-        offset = index * 4
-        pixels[offset:offset + 4] = bytes((255, 255, 255, 0))
-
-
 def resize_rgba(source_width, source_height, source_pixels, target_size):
     target = bytearray(target_size * target_size * 4)
     x_ratio = source_width / target_size
@@ -249,9 +208,29 @@ def read_file(path):
         return handle.read()
 
 
-def write_public_assets(icon_pixels):
-    write_png(os.path.join(PUBLIC_DIR, "app-icon.png"), 1024, 1024, icon_pixels)
-    write_png(os.path.join(PUBLIC_DIR, "favicon.png"), 64, 64, resize_rgba(1024, 1024, icon_pixels, 64))
+def copy_public_svg_assets():
+    with open(SOURCE_SVG, "r", encoding="utf-8") as handle:
+        content = handle.read()
+
+    for target in ("app-icon.svg", "favicon.svg"):
+        with open(os.path.join(PUBLIC_DIR, target), "w", encoding="utf-8") as handle:
+            handle.write(content)
+
+
+def render_svg_to_png(size):
+    qlmanage = shutil.which("qlmanage")
+    if not qlmanage:
+        raise RuntimeError("qlmanage is required to rasterize the SVG icon on macOS")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        subprocess.run(
+            [qlmanage, "-t", "-s", str(size), "-o", temp_dir, SOURCE_SVG],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        rendered_path = os.path.join(temp_dir, os.path.basename(SOURCE_SVG) + ".png")
+        return read_png(rendered_path)
 
 
 def write_icns():
@@ -270,13 +249,13 @@ def main():
     os.makedirs(PUBLIC_DIR, exist_ok=True)
     os.makedirs(ICONSET_DIR, exist_ok=True)
 
-    width, height, pixels = read_png(SOURCE_PNG)
-    remove_edge_background(width, height, pixels)
+    width, height, pixels = render_svg_to_png(1024)
+    if width != 1024 or height != 1024:
+        pixels = resize_rgba(width, height, pixels, 1024)
 
-    icon_pixels = resize_rgba(width, height, pixels, 1024)
     icon_png_path = os.path.join(BUILD_DIR, "icon.png")
-    write_png(icon_png_path, 1024, 1024, icon_pixels)
-    write_public_assets(icon_pixels)
+    write_png(icon_png_path, 1024, 1024, pixels)
+    copy_public_svg_assets()
 
     iconset_sizes = {
         "icon_16x16.png": 16,
@@ -291,12 +270,12 @@ def main():
         "icon_512x512@2x.png": 1024,
     }
     for name, size in iconset_sizes.items():
-        write_png(os.path.join(ICONSET_DIR, name), size, size, resize_rgba(1024, 1024, icon_pixels, size))
+        write_png(os.path.join(ICONSET_DIR, name), size, size, resize_rgba(1024, 1024, pixels, size))
 
     ico_images = []
     for size in (16, 24, 32, 48, 64, 128, 256):
         png_path = os.path.join(BUILD_DIR, f"icon-{size}.png")
-        write_png(png_path, size, size, resize_rgba(1024, 1024, icon_pixels, size))
+        write_png(png_path, size, size, resize_rgba(1024, 1024, pixels, size))
         ico_images.append((size, read_file(png_path)))
     write_ico(os.path.join(BUILD_DIR, "icon.ico"), ico_images)
 
