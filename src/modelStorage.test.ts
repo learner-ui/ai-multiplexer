@@ -20,9 +20,9 @@ class MemoryStorage implements Pick<Storage, 'getItem' | 'setItem'> {
 }
 
 describe('model storage', () => {
-  it('includes DeepSeek, GLM, Doubao, and Grok in the built-in model list', () => {
+  it('includes DeepSeek, GLM, Doubao, Grok, and Qwen in the built-in model list', () => {
     expect(DEFAULT_MODELS.map((model) => model.id)).toEqual(
-      expect.arrayContaining(['deepseek', 'glm', 'doubao', 'grok']),
+      expect.arrayContaining(['deepseek', 'glm', 'doubao', 'grok', 'qwen']),
     );
   });
 

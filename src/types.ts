@@ -36,4 +36,5 @@ export const AVAILABLE_MODELS: AIModel[] = [
   { id: 'copilot', name: 'Copilot', url: 'https://copilot.microsoft.com', color: 'bg-purple-600', newChatUrl: 'https://copilot.microsoft.com/' },
   { id: 'doubao', name: '豆包', url: 'https://www.doubao.com/chat/', color: 'bg-orange-600', newChatUrl: 'https://www.doubao.com/chat/' },
   { id: 'grok', name: 'Grok', url: 'https://grok.com/', color: 'bg-cyan-600', newChatUrl: 'https://grok.com/' },
+  { id: 'qwen', name: 'Qwen', url: 'https://chat.qwen.ai/', color: 'bg-teal-600', newChatUrl: 'https://chat.qwen.ai/' },
 ];

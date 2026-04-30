@@ -10,6 +10,7 @@ const {
   getBrowserLikeUserAgent,
   getGeminiCompatibleUserAgent,
 } = require('./userAgent.cjs');
+const { shouldKeepNavigationInWebview, shouldOpenInExternalBrowser } = require('./navigationRouting.cjs');
 const { setTaggedFileInputFiles } = require('./nativeFileInput.cjs');
 const { stagePromptAttachments } = require('./attachmentStaging.cjs');
 
@@ -109,6 +110,40 @@ function registerGeminiWebviewCompatibility() {
   });
 }
 
+function openExternalUrl(url) {
+  shell.openExternal(url).catch((error) => {
+    console.error('Failed to open external URL:', error);
+  });
+}
+
+function registerWebviewExternalNavigation() {
+  app.on('web-contents-created', (_event, contents) => {
+    if (contents.getType() !== 'webview') return;
+
+    contents.setWindowOpenHandler(({ url }) => {
+      if (!isHttpUrl(url)) return { action: 'deny' };
+
+      if (shouldKeepNavigationInWebview(contents.getURL(), url)) {
+        contents.loadURL(url).catch((error) => {
+          console.error('Failed to navigate webview to internal URL:', error);
+        });
+      } else {
+        openExternalUrl(url);
+      }
+
+      return { action: 'deny' };
+    });
+
+    contents.on('will-navigate', (event, details, fallbackUrl) => {
+      const url = typeof details?.url === 'string' ? details.url : fallbackUrl;
+      if (!shouldOpenInExternalBrowser(contents.getURL(), url)) return;
+
+      event.preventDefault();
+      openExternalUrl(url);
+    });
+  });
+}
+
 function getElectronFilePath(fileName) {
   return path.join(__dirname, fileName);
 }
@@ -145,7 +180,7 @@ function createWindow() {
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isHttpUrl(url)) {
-      shell.openExternal(url);
+      openExternalUrl(url);
     }
 
     return { action: 'deny' };
@@ -238,7 +273,7 @@ function registerIpc() {
 
   ipcMain.handle('open-external', (_event, url) => {
     if (isHttpUrl(url)) {
-      shell.openExternal(url);
+      openExternalUrl(url);
     }
   });
 
@@ -289,6 +324,7 @@ function registerIpc() {
 app.whenReady().then(() => {
   app.userAgentFallback = getBrowserLikeUserAgent(app.userAgentFallback);
   registerGeminiWebviewCompatibility();
+  registerWebviewExternalNavigation();
   registerIpc();
   createWindow();
 

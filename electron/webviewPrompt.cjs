@@ -258,6 +258,46 @@ const PROVIDERS = {
       'body',
     ],
   },
+  qwen: {
+    hosts: ['chat.qwen.ai'],
+    inputSelectors: [
+      '.ProseMirror[contenteditable="true"]',
+      '.ProseMirror[contenteditable="plaintext-only"]',
+      '[contenteditable]:not([contenteditable="false"])[data-placeholder*="Qwen"]',
+      '[contenteditable]:not([contenteditable="false"])[aria-label*="Qwen"]',
+      '[role="textbox"][aria-label*="Qwen"]',
+      'textarea[placeholder*="Qwen"]',
+      'textarea[aria-label*="Qwen"]',
+      'textarea',
+      '[contenteditable]:not([contenteditable="false"])',
+      '[role="textbox"]',
+    ],
+    sendSelectors: [
+      'button[aria-label="Send"]',
+      'button[aria-label="Send message"]',
+      'button[aria-label="发送"]',
+      'button[aria-label*="Send"]',
+      'button[aria-label*="发送"]',
+      'button[type="submit"]',
+    ],
+    sendFallback: 'last-icon-button',
+    fileInputSelectors: [
+      'input[type="file"]',
+    ],
+    uploadButtonSelectors: [
+      'button[aria-label*="Attach"]',
+      'button[aria-label*="Upload"]',
+      'button[aria-label*="Add file"]',
+      'button[aria-label*="上传"]',
+      'button[aria-label*="附件"]',
+    ],
+    dropTargetSelectors: [
+      'textarea',
+      '[contenteditable]:not([contenteditable="false"])',
+      '[role="textbox"]',
+      'body',
+    ],
+  },
   generic: {
     hosts: [],
     inputSelectors: [

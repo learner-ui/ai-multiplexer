@@ -29,6 +29,7 @@ describe('webview prompt injection helpers', () => {
     ['https://www.doubao.com/chat/', 'doubao'],
     ['https://grok.com/', 'grok'],
     ['https://x.com/i/grok', 'grok'],
+    ['https://chat.qwen.ai/', 'qwen'],
     ['https://example.com/', 'generic'],
   ])('detects %s as %s', (url, expected) => {
     expect(detectProvider(url)).toBe(expected);
@@ -657,5 +658,17 @@ describe('webview prompt injection helpers', () => {
 
     expect(result).toEqual({ ok: true, provider: 'doubao' });
     expect((document.querySelector('textarea') as HTMLTextAreaElement).value).toBe('介绍这篇论文');
+  });
+
+  it('fills Qwen using provider-specific detection', async () => {
+    document.body.innerHTML = `
+      <div class="ProseMirror" contenteditable="true"></div>
+      <button aria-label="Send">Send</button>
+    `;
+
+    const result = await injectPrompt('解释这段代码', 'https://chat.qwen.ai/');
+
+    expect(result).toEqual({ ok: true, provider: 'qwen' });
+    expect(document.querySelector('.ProseMirror')?.textContent).toBe('解释这段代码');
   });
 });
