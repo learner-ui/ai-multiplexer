@@ -15,11 +15,18 @@ release
 build/icon-[0-9]*.png
 build/icon.iconset/
 
+# Local iOS prototype
+ios/
+scripts/build-ios-ipa.sh
+scripts/generate-ios-assets.py
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+*.xcuserstate
+xcuserdata/
 *.suo
 *.ntvs*
 *.njsproj

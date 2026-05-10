@@ -20,9 +20,21 @@ class MemoryStorage implements Pick<Storage, 'getItem' | 'setItem'> {
 }
 
 describe('model storage', () => {
-  it('includes DeepSeek, GLM, Doubao, Grok, and Qwen in the built-in model list', () => {
-    expect(DEFAULT_MODELS.map((model) => model.id)).toEqual(
-      expect.arrayContaining(['deepseek', 'glm', 'doubao', 'grok', 'qwen']),
+  it('includes the expanded built-in model list', () => {
+    expect(DEFAULT_MODELS).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'deepseek' }),
+        expect.objectContaining({ id: 'doubao' }),
+        expect.objectContaining({ id: 'grok' }),
+        expect.objectContaining({ id: 'qwen' }),
+        expect.objectContaining({ id: 'metaso', name: '秘塔', url: 'https://metaso.cn/' }),
+        expect.objectContaining({ id: 'yuanbao', name: '元宝', url: 'https://yuanbao.tencent.com/chat/naQivTmsDa' }),
+        expect.objectContaining({ id: 'kimi', name: 'Kimi', url: 'https://www.kimi.com/' }),
+        expect.objectContaining({ id: 'perplexity', name: 'Perplexity', url: 'https://www.perplexity.ai/' }),
+      ]),
+    );
+    expect(DEFAULT_MODELS.map((model) => model.id)).not.toEqual(
+      expect.arrayContaining(['dots', 'xiaohongshu', 'glm']),
     );
   });
 

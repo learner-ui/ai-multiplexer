@@ -24,6 +24,10 @@ export interface StageAttachmentsResult {
   attachments: PromptAttachment[];
 }
 
+export interface ClearLoginProfileDataResult {
+  cleared: boolean;
+}
+
 export interface ElectronAPI {
   isElectron: true;
   getWebviewPreloadPath: () => string;
@@ -35,13 +39,8 @@ export interface ElectronAPI {
   ) => Promise<BroadcastPromptResult>;
   broadcastNewChat: (targets: NewChatTarget[]) => Promise<BroadcastNewChatResult>;
   openExternal: (url: string) => Promise<void>;
-  stageAttachments: (
-    attachments: PromptAttachment[],
-    baseDir?: string,
-  ) => Promise<PromptAttachment[]>;
-  selectAttachmentFolder: () => Promise<string | null>;
-  showItemInFolder: (path: string) => Promise<void>;
-  startFileDrag: (paths: string[]) => void;
+  clearLoginProfileData: (partition: string) => Promise<ClearLoginProfileDataResult>;
+  stageAttachments: (attachments: PromptAttachment[]) => Promise<PromptAttachment[]>;
 }
 
 export interface ElectronWebviewElement extends HTMLElement {

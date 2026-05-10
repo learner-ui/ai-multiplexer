@@ -1,17 +1,16 @@
 import React, { useRef, useState } from 'react';
-import { FileText, FolderCog, FolderOpen, MessageSquarePlus, Paperclip, Send, X } from 'lucide-react';
+import { FileText, MessageSquarePlus, Paperclip, Send, X } from 'lucide-react';
 import {
   ACCEPTED_ATTACHMENT_EXTENSIONS,
   createAttachmentPayloads,
   MAX_ATTACHMENT_COUNT,
 } from '../attachments';
-import {
-  loadAttachmentTrayFolder,
-  saveAttachmentTrayFolder,
-} from '../attachmentTraySettings';
 import type { GlobalSendOptions, PromptAttachment, RejectedAttachment } from '../types';
 
-const MANUAL_ATTACHMENT_MODEL_IDS = ['gemini'];
+// Providers that still need text-only broadcast even when attachments are present.
+// Empty by default because every provider now runs through the attachment injection
+// pipeline (paste-first for Gemini, file-input / drop for everyone else).
+const MANUAL_ATTACHMENT_MODEL_IDS: string[] = [];
 
 interface GlobalInputProps {
   onSend: (message: string, attachments: PromptAttachment[], options?: GlobalSendOptions) => void;
@@ -44,7 +43,6 @@ const GlobalInput: React.FC<GlobalInputProps> = ({ onSend, onNewChat, activeCoun
   const [attachmentError, setAttachmentError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isNewChatConfirmOpen, setIsNewChatConfirmOpen] = useState(false);
-  const [attachmentTrayFolder, setAttachmentTrayFolder] = useState(() => loadAttachmentTrayFolder());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const hasMessage = Boolean(message.trim());
@@ -61,28 +59,19 @@ const GlobalInput: React.FC<GlobalInputProps> = ({ onSend, onNewChat, activeCoun
     onNewChat();
   };
 
-  const stageAttachmentsForTray = async (items: PromptAttachment[]) => {
+  // Attachments still get staged to a real file on disk so Electron's native
+  // file-input path (DOM.setFileInputFiles via CDP) can be used as a fallback
+  // when paste/drop fail. The staged file lives in a temp folder managed by
+  // Electron and is never surfaced in the UI.
+  const stageAttachmentsForUpload = async (items: PromptAttachment[]) => {
     if (items.length === 0 || !window.electronAPI?.stageAttachments) return items;
 
     try {
-      return await window.electronAPI.stageAttachments(
-        items,
-        attachmentTrayFolder || undefined,
-      );
+      return await window.electronAPI.stageAttachments(items);
     } catch (error) {
-      console.warn('Failed to stage attachments for tray:', error);
+      console.warn('Failed to stage attachments for upload:', error);
       return items;
     }
-  };
-
-  const handleChooseAttachmentFolder = async () => {
-    if (!window.electronAPI?.selectAttachmentFolder) return;
-
-    const folderPath = await window.electronAPI.selectAttachmentFolder();
-    if (!folderPath) return;
-
-    saveAttachmentTrayFolder(folderPath);
-    setAttachmentTrayFolder(folderPath);
   };
 
   const addFiles = async (files: File[]) => {
@@ -96,7 +85,7 @@ const GlobalInput: React.FC<GlobalInputProps> = ({ onSend, onNewChat, activeCoun
     }));
 
     const result = await createAttachmentPayloads(filesToRead, window.electronAPI?.getPathForFile);
-    const stagedAttachments = await stageAttachmentsForTray(result.attachments);
+    const stagedAttachments = await stageAttachmentsForUpload(result.attachments);
     setAttachments([...attachments, ...stagedAttachments]);
     setAttachmentError(getRejectedMessage([...result.rejected, ...rejectedOverflow]));
   };
@@ -111,29 +100,6 @@ const GlobalInput: React.FC<GlobalInputProps> = ({ onSend, onNewChat, activeCoun
     event.preventDefault();
     setIsDragging(false);
     void addFiles(Array.from(event.dataTransfer.files));
-  };
-
-  const handleAttachmentDragStart = (
-    event: React.DragEvent<HTMLElement>,
-    attachment: PromptAttachment,
-  ) => {
-    if (!attachment.path || !window.electronAPI?.startFileDrag) {
-      event.preventDefault();
-      return;
-    }
-
-    event.dataTransfer.effectAllowed = 'copy';
-    event.dataTransfer.setData('text/plain', attachment.name);
-    window.electronAPI.startFileDrag([attachment.path]);
-  };
-
-  const handleRevealAttachment = (
-    event: React.MouseEvent<HTMLButtonElement>,
-    attachment: PromptAttachment,
-  ) => {
-    event.stopPropagation();
-    if (!attachment.path || !window.electronAPI?.showItemInFolder) return;
-    void window.electronAPI.showItemInFolder(attachment.path);
   };
 
   const removeAttachment = (attachment: PromptAttachment) => {
@@ -190,24 +156,6 @@ const GlobalInput: React.FC<GlobalInputProps> = ({ onSend, onNewChat, activeCoun
           >
             <Paperclip size={16} />
           </button>
-          <button
-            type="button"
-            data-testid="attachment-folder-button"
-            onClick={handleChooseAttachmentFolder}
-            disabled={!window.electronAPI?.selectAttachmentFolder}
-            className={`h-10 w-10 shrink-0 rounded-lg border transition-colors flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed ${
-              attachmentTrayFolder
-                ? 'border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100'
-                : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-            }`}
-            title={
-              attachmentTrayFolder
-                ? `更换聊天文件夹：${attachmentTrayFolder}`
-                : '选择聊天文件夹（保存上传到聊天的文件）'
-            }
-          >
-            <FolderCog size={16} />
-          </button>
           <div className="flex-1 min-w-0">
             {(attachments.length > 0 || attachmentError) && (
               <div className="mb-1 flex flex-wrap gap-1.5">
@@ -215,32 +163,12 @@ const GlobalInput: React.FC<GlobalInputProps> = ({ onSend, onNewChat, activeCoun
                   <span
                     key={attachment.id}
                     data-testid="attachment-tray-item"
-                    draggable={Boolean(attachment.path)}
-                    onDragStart={(event) => handleAttachmentDragStart(event, attachment)}
-                    className={`inline-flex max-w-[220px] items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700 ${
-                      attachment.path ? 'cursor-grab active:cursor-grabbing' : ''
-                    }`}
-                    title={
-                      attachment.path
-                        ? `${attachment.name} (${formatBytes(attachment.size)}) - 已存入聊天文件夹`
-                        : `${attachment.name} (${formatBytes(attachment.size)})`
-                    }
+                    className="inline-flex max-w-[220px] items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700"
+                    title={`${attachment.name} (${formatBytes(attachment.size)})`}
                   >
                     <FileText size={13} className="shrink-0" />
                     <span className="truncate">{attachment.name}</span>
                     <span className="shrink-0 text-gray-400">{formatBytes(attachment.size)}</span>
-                    {attachment.path && window.electronAPI?.showItemInFolder && (
-                      <button
-                        type="button"
-                        data-testid="attachment-reveal-button"
-                        draggable={false}
-                        onClick={(event) => handleRevealAttachment(event, attachment)}
-                        className="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700"
-                        title={`在聊天文件夹中显示 ${attachment.name}`}
-                      >
-                        <FolderOpen size={12} />
-                      </button>
-                    )}
                     <button
                       type="button"
                       draggable={false}

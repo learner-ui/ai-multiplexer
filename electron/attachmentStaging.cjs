@@ -32,48 +32,39 @@ async function fileExists(filePath) {
   }
 }
 
-async function getAvailableFilePath(trayDir, fileName, usedNames) {
+async function getAvailableFilePath(stagingDir, fileName, usedNames) {
   const extension = path.extname(fileName);
   const stem = extension ? fileName.slice(0, -extension.length) : fileName;
   let index = 1;
   let candidate = fileName;
 
-  while (usedNames.has(candidate) || await fileExists(path.join(trayDir, candidate))) {
+  while (usedNames.has(candidate) || await fileExists(path.join(stagingDir, candidate))) {
     index += 1;
     candidate = `${stem}-${index}${extension}`;
   }
 
   usedNames.add(candidate);
-  return path.join(trayDir, candidate);
-}
-
-function resolveTrayDir(baseDir, options) {
-  if (options.useBatchFolder === false) {
-    return baseDir;
-  }
-
-  const folderName = options.folderName || `${Date.now()}-${crypto.randomUUID()}`;
-  return path.join(baseDir, 'ai-multiplexer-attachment-tray', folderName);
+  return path.join(stagingDir, candidate);
 }
 
 async function stagePromptAttachments(attachments, options = {}) {
   const baseDir = options.baseDir || process.env.TMPDIR || '/tmp';
-  const trayDir = resolveTrayDir(baseDir, options);
+  const folderName = options.folderName || `${Date.now()}-${crypto.randomUUID()}`;
+  const stagingDir = path.join(baseDir, 'ai-multiplexer-attachment-staging', folderName);
   const usedNames = new Set();
 
-  await mkdir(trayDir, { recursive: true });
+  await mkdir(stagingDir, { recursive: true });
 
   const stagedAttachments = [];
 
   for (const [index, attachment] of attachments.entries()) {
     const safeName = sanitizeFileName(attachment.name, `attachment-${index + 1}`);
-    const stagedPath = await getAvailableFilePath(trayDir, safeName, usedNames);
+    const stagedPath = await getAvailableFilePath(stagingDir, safeName, usedNames);
 
     await writeFile(stagedPath, getAttachmentBytes(attachment));
 
     stagedAttachments.push({
       ...attachment,
-      originalPath: attachment.path,
       path: stagedPath,
     });
   }

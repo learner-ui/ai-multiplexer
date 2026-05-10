@@ -15,11 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }),
   broadcastNewChat: (targets) => ipcRenderer.invoke('broadcast-new-chat', { targets }),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
-  stageAttachments: (attachments, baseDir) => ipcRenderer.invoke('stage-attachments', {
-    attachments,
-    baseDir,
-  }),
-  selectAttachmentFolder: () => ipcRenderer.invoke('select-attachment-folder'),
-  showItemInFolder: (filePath) => ipcRenderer.invoke('show-item-in-folder', filePath),
-  startFileDrag: (paths) => ipcRenderer.send('start-file-drag', { paths }),
+  clearLoginProfileData: (partition) => ipcRenderer.invoke('clear-login-profile-data', { partition }),
+  stageAttachments: (attachments) => ipcRenderer.invoke('stage-attachments', { attachments }),
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X, RefreshCw, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, RefreshCw, ExternalLink, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import {
   ADD_LOGIN_PROFILE_VALUE,
   getLoginProfilesForModel,
@@ -48,6 +48,7 @@ const AIPane: React.FC<AIPaneProps> = ({
 }) => {
   const webviewRef = useRef<ElectronWebviewElement | null>(null);
   const [diagnostic, setDiagnostic] = useState<PaneDiagnostic | null>(null);
+  const [isClearingLoginData, setIsClearingLoginData] = useState(false);
   const isElectron = Boolean(window.electronAPI?.isElectron);
   const isDev = import.meta.env.DEV;
   const preloadPath = window.electronAPI?.getWebviewPreloadPath();
@@ -55,6 +56,10 @@ const AIPane: React.FC<AIPaneProps> = ({
   const loginProfiles = useMemo(
     () => getLoginProfilesForModel(model.id, loginProfileCount),
     [loginProfileCount, model.id],
+  );
+  const selectedLoginProfileLabel = useMemo(
+    () => loginProfiles.find((profile) => profile.id === loginProfileId)?.label ?? loginProfileId,
+    [loginProfileId, loginProfiles],
   );
   const browserLikeUserAgent = useMemo(
     () => {
@@ -278,6 +283,36 @@ const AIPane: React.FC<AIPaneProps> = ({
     window.open(model.url, '_blank', 'noopener,noreferrer');
   };
 
+  const handleClearLoginProfile = async () => {
+    if (!window.electronAPI?.isElectron || isClearingLoginData) return;
+
+    const confirmed = window.confirm(
+      `清除 ${model.name} ${selectedLoginProfileLabel} 的登录信息？\n\n这会删除这个账号槽位的 Cookie、缓存和本地登录状态，然后重新加载页面。`,
+    );
+    if (!confirmed) return;
+
+    setIsClearingLoginData(true);
+
+    try {
+      const result = await window.electronAPI.clearLoginProfileData(partition);
+      if (!result.cleared) {
+        throw new Error('Current login profile partition was rejected.');
+      }
+
+      const webview = webviewRef.current as ReloadableElectronWebviewElement | null;
+      if (typeof webview?.reloadIgnoringCache === 'function') {
+        webview.reloadIgnoringCache();
+      } else if (typeof webview?.reload === 'function') {
+        webview.reload();
+      }
+    } catch (error) {
+      console.error(`Failed to clear ${model.name} login profile data:`, error);
+      window.alert('清除登录信息失败，请重试。');
+    } finally {
+      setIsClearingLoginData(false);
+    }
+  };
+
   const diagnosticToneClass = diagnostic?.tone === 'error'
     ? 'border-red-200 bg-red-50 text-red-800'
     : diagnostic?.tone === 'success'
@@ -312,6 +347,15 @@ const AIPane: React.FC<AIPaneProps> = ({
               + 添加账号
             </option>
           </select>
+          <button
+            type="button"
+            onClick={handleClearLoginProfile}
+            disabled={!isElectron || isClearingLoginData}
+            className="shrink-0 rounded border border-white/30 bg-black/15 px-1 py-0.5 text-[11px] text-white outline-none transition-colors hover:bg-white/20 disabled:opacity-40"
+            title={`清除 ${model.name} ${selectedLoginProfileLabel} 登录信息`}
+          >
+            <Trash2 size={11} />
+          </button>
         </div>
         
         <div className="flex items-center space-x-0.5 shrink-0">

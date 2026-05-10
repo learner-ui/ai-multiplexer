@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Columns3, Plus, Trash2, X } from 'lucide-react';
 import {
   createCustomModel,
   CUSTOM_MODEL_COLORS,
@@ -23,6 +23,7 @@ import type { AIModel } from './types';
 import type { GlobalSendOptions, PromptAttachment } from './types';
 import type { PromptTarget } from './electron';
 import Workspace from './components/Workspace';
+import type { WorkspaceHandle } from './components/Workspace';
 import GlobalInput from './components/GlobalInput';
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
     () => loadLoginProfileCounts(),
   );
   const [webviewTargetsByModel, setWebviewTargetsByModel] = useState<Record<string, PromptTarget>>({});
+  const workspaceRef = useRef<WorkspaceHandle | null>(null);
 
   const allModels = useMemo(() => [...DEFAULT_MODELS, ...customModels], [customModels]);
 
@@ -238,9 +240,18 @@ function App() {
     <div className="flex flex-col h-screen overflow-hidden bg-gray-100 font-sans">
       {/* Top Navigation Bar */}
       <header className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between gap-4 shadow-sm z-10 shrink-0">
-        <div className="flex items-center space-x-2">
-          <img src="/app-icon.svg" alt="" className="h-7 w-7 rounded-md" />
+        <div className="flex items-center gap-2 shrink-0">
           <h1 className="text-lg font-bold text-gray-800">AI Multiplexer</h1>
+          <button
+            type="button"
+            onClick={() => workspaceRef.current?.resetLayout()}
+            disabled={activeModels.length === 0}
+            className="flex items-center gap-1 px-2 py-1 rounded border border-gray-300 bg-white text-gray-700 text-xs font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title="将所有面板重新均匀分布"
+          >
+            <Columns3 size={12} />
+            均分
+          </button>
         </div>
         
         <div className="flex items-center gap-2 overflow-x-auto min-w-0">
@@ -383,6 +394,7 @@ function App() {
 
       {/* Main Workspace Area (The Split Panes) */}
       <Workspace 
+        ref={workspaceRef}
         activeModels={activeModels} 
         onRemoveModel={handleRemoveModel} 
         onMoveModel={handleMoveModel}

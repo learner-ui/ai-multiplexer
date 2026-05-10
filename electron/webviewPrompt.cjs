@@ -84,12 +84,21 @@ const PROVIDERS = {
       '[contenteditable="true"]',
       'body',
     ],
+    pasteTargetSelectors: [
+      'rich-textarea .ql-editor',
+      '.ql-editor[contenteditable="true"]',
+      'div[contenteditable="true"]',
+      'textarea',
+    ],
     requiresAttachmentEvidence: true,
     attachmentEvidenceTimeoutMs: 12000,
     dropTargetEvidenceTimeoutMs: 1800,
     directFileInputTimeoutMs: 1800,
     uploadMenuTimeoutMs: 5000,
     useNativeFileInput: true,
+    attachmentPasteFirst: true,
+    pasteEvidenceTimeoutMs: 600,
+    pasteMaxTargets: 2,
   },
   claude: {
     hosts: ['claude.ai'],
@@ -1025,6 +1034,135 @@ function dispatchFilesDropToTarget(target, files) {
   return true;
 }
 
+function dispatchFilesPasteToTarget(target, files) {
+  if (!target) return false;
+
+  try {
+    target.focus?.();
+  } catch {
+  }
+
+  const dataTransfer = createDataTransfer(files);
+  const ownerDocument = target.ownerDocument ?? document;
+
+  // Some editors (notably Gemini's Lexical composer) listen for a
+  // `beforeinput` with `insertFromPaste` and the attached dataTransfer, not
+  // only the paste event itself. Fire both so we cover the common flows.
+  if (typeof InputEvent === 'function') {
+    try {
+      const beforeInputEvent = new InputEvent('beforeinput', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertFromPaste',
+        dataTransfer,
+      });
+      target.dispatchEvent(beforeInputEvent);
+    } catch {
+    }
+  }
+
+  const buildPasteEvent = () => {
+    let event = null;
+
+    if (typeof ClipboardEvent === 'function') {
+      try {
+        event = new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: dataTransfer,
+        });
+      } catch {
+      }
+    }
+
+    if (!event) {
+      event = new Event('paste', { bubbles: true, cancelable: true });
+    }
+
+    // Chromium + JSDOM both sometimes drop the clipboardData arg to the
+    // ClipboardEvent constructor. Force the property onto the event instance
+    // so page listeners consistently see the synthetic files via
+    // `event.clipboardData.files`.
+    try {
+      Object.defineProperty(event, 'clipboardData', {
+        configurable: true,
+        value: dataTransfer,
+      });
+    } catch {
+    }
+
+    return event;
+  };
+
+  target.dispatchEvent(buildPasteEvent());
+
+  // Some apps (Gemini specifically) attach the paste handler on a root
+  // listener rather than the composer itself; echoing the event to the
+  // document gives those listeners a fair chance too.
+  if (ownerDocument && ownerDocument !== target) {
+    try {
+      ownerDocument.dispatchEvent(buildPasteEvent());
+    } catch {
+    }
+  }
+
+  return true;
+}
+
+function getPasteTargets(config, root = document) {
+  const targets = [];
+  const seen = new Set();
+
+  const selectorGroups = [
+    config.pasteTargetSelectors ?? [],
+    config.inputSelectors ?? [],
+    config.dropTargetSelectors ?? [],
+  ];
+
+  for (const selectors of selectorGroups) {
+    for (const selector of selectors) {
+      for (const candidate of queryAll(selector, root)) {
+        if (!candidate || seen.has(candidate)) continue;
+        seen.add(candidate);
+        targets.push(candidate);
+      }
+    }
+  }
+
+  for (const fallbackTarget of [root.body, root.documentElement]) {
+    if (!fallbackTarget || seen.has(fallbackTarget)) continue;
+    seen.add(fallbackTarget);
+    targets.push(fallbackTarget);
+  }
+
+  return targets;
+}
+
+async function dispatchFilesPasteUntilConfirmed(files, attachments, config, root = document) {
+  const targets = getPasteTargets(config, root);
+  if (targets.length === 0) return { uploaded: 0, reason: 'paste-target-not-found' };
+
+  const maxTargets = Math.min(targets.length, config.pasteMaxTargets ?? 2);
+  const perTargetTimeout = config.pasteEvidenceTimeoutMs ?? 800;
+
+  for (let index = 0; index < maxTargets; index += 1) {
+    const target = targets[index];
+    if (!dispatchFilesPasteToTarget(target, files)) continue;
+
+    const confirmed = await waitForAttachmentEvidence(attachments, root, perTargetTimeout);
+    if (confirmed) {
+      const ready = await waitForAttachmentReady(config, root);
+      return {
+        uploaded: files.length,
+        method: 'paste',
+        ...(ready ? { ready: true } : {}),
+      };
+    }
+  }
+
+  return { uploaded: 0, reason: 'paste-upload-unconfirmed' };
+}
+
 function getDropTargets(config, root = document) {
   const targets = [];
   const seen = new Set();
@@ -1080,10 +1218,24 @@ async function uploadAttachments(attachments, config, root = document) {
   if (attachments.length === 0) return { uploaded: 0 };
 
   const files = attachments.map(createFileFromAttachment);
+
+  if (config.attachmentPasteFirst) {
+    const pasteResult = await dispatchFilesPasteUntilConfirmed(files, attachments, config, root);
+    if (pasteResult.uploaded > 0) return pasteResult;
+  }
+
   const input = await findFileInput(config, attachments, root);
   if (!input) {
     if (config.requiresAttachmentEvidence) {
-      return dispatchFilesDropUntilConfirmed(files, attachments, config, root);
+      const dropResult = await dispatchFilesDropUntilConfirmed(files, attachments, config, root);
+      if (dropResult.uploaded > 0) return dropResult;
+
+      if (!config.attachmentPasteFirst) {
+        const pasteFallback = await dispatchFilesPasteUntilConfirmed(files, attachments, config, root);
+        if (pasteFallback.uploaded > 0) return pasteFallback;
+      }
+
+      return dropResult;
     }
 
     if (dispatchFilesDrop(files, config, root)) {
@@ -1122,6 +1274,16 @@ async function uploadAttachments(attachments, config, root = document) {
         ...dropResult,
         method: 'drop-after-input',
       };
+    }
+
+    if (!config.attachmentPasteFirst) {
+      const pasteFallback = await dispatchFilesPasteUntilConfirmed(files, attachments, config, root);
+      if (pasteFallback.uploaded > 0) {
+        return {
+          ...pasteFallback,
+          method: 'paste-after-input',
+        };
+      }
     }
 
     return { uploaded: 0, reason: 'attachment-upload-unconfirmed' };

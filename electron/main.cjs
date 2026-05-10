@@ -1,5 +1,5 @@
 const path = require('node:path');
-const { app, BrowserWindow, dialog, ipcMain, nativeImage, shell, webContents } = require('electron');
+const { app, BrowserWindow, ipcMain, session, shell, webContents } = require('electron');
 const {
   isHttpUrl,
   matchesTarget,
@@ -16,15 +16,6 @@ const { stagePromptAttachments } = require('./attachmentStaging.cjs');
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const geminiCompatibleSessions = new WeakSet();
-
-const DRAG_ICON_DATA_URL = 'data:image/svg+xml;charset=utf-8,' +
-  encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-      <rect width="32" height="32" rx="7" fill="#2563eb"/>
-      <path d="M10 7h8l4 4v14H10z" fill="white"/>
-      <path d="M18 7v5h5" fill="#bfdbfe"/>
-    </svg>
-  `.trim());
 
 function isGeminiCompatibleUrl(url = '') {
   try {
@@ -148,19 +139,6 @@ function getElectronFilePath(fileName) {
   return path.join(__dirname, fileName);
 }
 
-function getNativeDragIcon() {
-  const icon = nativeImage.createFromDataURL(DRAG_ICON_DATA_URL);
-  return icon.isEmpty() ? nativeImage.createEmpty() : icon;
-}
-
-function getDragFilePaths(payload) {
-  if (!payload || !Array.isArray(payload.paths)) return [];
-
-  return payload.paths.filter((filePath) => (
-    typeof filePath === 'string' && path.isAbsolute(filePath) && filePath.length > 0
-  ));
-}
-
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1440,
@@ -215,10 +193,20 @@ function getAttachmentsFromPayload(payload) {
   }));
 }
 
-function getUserManagedAttachmentDir(payload) {
-  const value = typeof payload?.baseDir === 'string' ? payload.baseDir.trim() : '';
-  if (!value || !path.isAbsolute(value)) return null;
+function getManagedLoginPartition(payload) {
+  const value = typeof payload?.partition === 'string' ? payload.partition.trim() : '';
+  if (!/^persist:ai-multiplexer-[a-z0-9-]+-account-[1-9]\d*$/.test(value)) return null;
   return value;
+}
+
+async function clearSessionLoginData(partition) {
+  const targetSession = session.fromPartition(partition);
+  await targetSession.clearStorageData();
+  await targetSession.clearCache();
+
+  if (typeof targetSession.clearAuthCache === 'function') {
+    await targetSession.clearAuthCache();
+  }
 }
 
 function registerIpc() {
@@ -277,48 +265,26 @@ function registerIpc() {
     }
   });
 
+  ipcMain.handle('clear-login-profile-data', async (_event, payload) => {
+    const partition = getManagedLoginPartition(payload);
+    if (!partition) return { cleared: false };
+
+    await clearSessionLoginData(partition);
+    return { cleared: true };
+  });
+
   ipcMain.handle('stage-attachments', async (_event, payload) => {
     const attachments = getAttachmentsFromPayload(payload);
     if (attachments.length === 0) return [];
-    const userManagedDir = getUserManagedAttachmentDir(payload);
 
     return stagePromptAttachments(attachments, {
-      baseDir: userManagedDir || app.getPath('temp'),
-      useBatchFolder: !userManagedDir,
+      baseDir: app.getPath('temp'),
     });
-  });
-
-  ipcMain.handle('select-attachment-folder', async (event) => {
-    const ownerWindow = BrowserWindow.fromWebContents(event.sender) || undefined;
-    const result = await dialog.showOpenDialog(ownerWindow, {
-      title: '选择聊天文件夹',
-      buttonLabel: '使用这个聊天文件夹',
-      properties: ['openDirectory', 'createDirectory'],
-    });
-
-    if (result.canceled) return null;
-    return result.filePaths[0] || null;
-  });
-
-  ipcMain.handle('show-item-in-folder', (_event, filePath) => {
-    if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) return;
-    shell.showItemInFolder(filePath);
   });
 
   ipcMain.handle('set-file-input-files', (event, payload) => (
     setTaggedFileInputFiles(event.sender, payload?.token, payload?.paths)
   ));
-
-  ipcMain.on('start-file-drag', (event, payload) => {
-    const paths = getDragFilePaths(payload);
-    if (paths.length === 0) return;
-
-    event.sender.startDrag({
-      file: paths[0],
-      files: paths,
-      icon: getNativeDragIcon(),
-    });
-  });
 }
 
 app.whenReady().then(() => {

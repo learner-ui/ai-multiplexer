@@ -1,7 +1,7 @@
 const { isHttpUrl } = require('./targetRouting.cjs');
 
 const INTERNAL_HOST_GROUPS = [
-  ['chatgpt.com', 'chat.openai.com', 'auth.openai.com', 'openai.com', 'oaistatic.com', 'oaiusercontent.com'],
+  ['chatgpt.com', 'chat.openai.com', 'auth.openai.com', 'openai.com', 'oaistatic.com', 'oaiusercontent.com', 'accounts.google.com', 'google.com', 'gstatic.com'],
   ['gemini.google.com', 'accounts.google.com', 'google.com', 'googleapis.com', 'googleusercontent.com', 'gstatic.com'],
   ['claude.ai', 'anthropic.com', 'accounts.google.com', 'appleid.apple.com', 'auth0.com'],
   ['chat.deepseek.com', 'deepseek.com'],

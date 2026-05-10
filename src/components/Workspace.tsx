@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { AIModel } from '../types';
 import type { PromptTarget } from '../electron';
 import type { LoginProfileId } from '../sessionProfiles';
@@ -11,6 +11,10 @@ import AIPane from './AIPane';
 
 type WorkspaceLayout = Record<string, number>;
 
+export interface WorkspaceHandle {
+  resetLayout: () => void;
+}
+
 interface WorkspaceProps {
   activeModels: AIModel[];
   onRemoveModel: (id: string) => void;
@@ -22,7 +26,7 @@ interface WorkspaceProps {
   onWebviewTargetChange: (id: string, target: PromptTarget | null) => void;
 }
 
-const Workspace: React.FC<WorkspaceProps> = ({
+const Workspace = React.forwardRef<WorkspaceHandle, WorkspaceProps>(function Workspace({
   activeModels,
   onRemoveModel,
   onMoveModel,
@@ -31,7 +35,7 @@ const Workspace: React.FC<WorkspaceProps> = ({
   onLoginProfileChange,
   onLoginProfileAdd,
   onWebviewTargetChange,
-}) => {
+}, handleRef) {
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const paneShellsRef = useRef(new Map<string, HTMLDivElement>());
   const activeModelIds = useMemo(
@@ -123,6 +127,24 @@ const Workspace: React.FC<WorkspaceProps> = ({
     window.addEventListener('pointercancel', handlePointerUp, { once: true });
   }, [activeModelIds, panelLayout]);
 
+  useImperativeHandle(handleRef, () => ({
+    resetLayout: () => {
+      if (activeModelIds.length === 0) return;
+
+      const equalSize = 100 / activeModelIds.length;
+      const nextLayout = Object.fromEntries(
+        activeModelIds.map((id) => [id, equalSize]),
+      );
+
+      applyPanelLayoutStyles(nextLayout, paneShellsRef.current);
+      setRenderState((currentState) => ({
+        ...currentState,
+        layout: nextLayout,
+      }));
+      savePanelLayout(activeModelIds, nextLayout);
+    },
+  }), [activeModelIds]);
+
   if (activeModels.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-100 p-4">
@@ -198,7 +220,9 @@ const Workspace: React.FC<WorkspaceProps> = ({
       </div>
     </div>
   );
-};
+});
+
+export default Workspace;
 
 function haveSameIds(left: string[], right: string[]) {
   return left.length === right.length && left.every((id, index) => id === right[index]);
@@ -267,5 +291,3 @@ function applyPanelLayoutStyles(
     paneShell.style.flexBasis = '0px';
   }
 }
-
-export default Workspace;

@@ -671,4 +671,62 @@ describe('webview prompt injection helpers', () => {
     expect(result).toEqual({ ok: true, provider: 'qwen' });
     expect(document.querySelector('.ProseMirror')?.textContent).toBe('解释这段代码');
   });
+
+  it('uploads Gemini attachments via a synthetic paste before text entry', async () => {
+    document.body.innerHTML = `
+      <div class="ql-editor" contenteditable="true"></div>
+      <button aria-label="Send message">Send</button>
+    `;
+
+    const editor = document.querySelector('[contenteditable="true"]') as HTMLElement;
+    editor.addEventListener('paste', (event: ClipboardEvent) => {
+      const file = event.clipboardData?.files?.[0];
+      if (!file) return;
+
+      event.preventDefault();
+      const chip = document.createElement('div');
+      chip.textContent = file.name;
+      chip.dataset.attachmentChip = 'true';
+      document.body.append(chip);
+    });
+
+    const result = await injectPrompt({
+      message: 'read this PDF',
+      attachments: [makeAttachment('paper.pdf')],
+    }, 'https://gemini.google.com/app');
+
+    expect(result).toEqual({
+      ok: true,
+      provider: 'gemini',
+      attachments: { uploaded: 1, method: 'paste' },
+    });
+    expect(document.querySelector('[data-attachment-chip]')?.textContent).toBe('paper.pdf');
+  });
+
+  it('falls back to Gemini file input when paste does not produce a chip', async () => {
+    document.body.innerHTML = `
+      <input type="file" accept=".pdf,.docx,.txt,.csv,image/*" />
+      <div class="ql-editor" contenteditable="true"></div>
+      <button aria-label="Send message">Send</button>
+    `;
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    input?.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      const chip = document.createElement('div');
+      chip.textContent = file.name;
+      chip.dataset.attachmentChip = 'true';
+      document.body.append(chip);
+    });
+
+    const result = await injectPrompt({
+      message: 'read this PDF',
+      attachments: [makeAttachment('paper.pdf')],
+    }, 'https://gemini.google.com/app');
+
+    expect(result).toEqual({ ok: true, provider: 'gemini', attachments: { uploaded: 1 } });
+    expect(input?.files?.[0]?.name).toBe('paper.pdf');
+  }, 10000);
 });

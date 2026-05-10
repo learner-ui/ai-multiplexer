@@ -30,6 +30,7 @@ describe('AIPane', () => {
     container?.remove();
     root = null;
     container = null;
+    delete window.electronAPI;
     vi.restoreAllMocks();
   });
 
@@ -74,5 +75,54 @@ describe('AIPane', () => {
     });
 
     expect(onLoginProfileAdd).toHaveBeenCalledWith('chatgpt');
+  });
+
+  it('clears the selected login profile data', async () => {
+    const clearLoginProfileData = vi.fn().mockResolvedValue({ cleared: true });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const alert = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    window.electronAPI = {
+      isElectron: true,
+      getWebviewPreloadPath: () => 'file:///webview-preload.cjs',
+      getPathForFile: () => '',
+      broadcastPrompt: vi.fn().mockResolvedValue({ sent: 0 }),
+      broadcastNewChat: vi.fn().mockResolvedValue({ sent: 0 }),
+      openExternal: vi.fn().mockResolvedValue(undefined),
+      clearLoginProfileData,
+      stageAttachments: vi.fn().mockResolvedValue([]),
+    };
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        <AIPane
+          model={chatgpt}
+          onRemove={() => undefined}
+          onMove={() => undefined}
+          loginProfileId="account-2"
+          loginProfileCount={2}
+          onLoginProfileChange={() => undefined}
+          onLoginProfileAdd={() => undefined}
+          onWebviewTargetChange={() => undefined}
+          isFirst
+          isLast
+        />,
+      );
+    });
+
+    const clearButton = container.querySelector('[title="清除 ChatGPT 账号 2 登录信息"]') as HTMLButtonElement | null;
+    expect(clearButton).toBeTruthy();
+    expect(clearButton?.disabled).toBe(false);
+
+    await act(async () => {
+      clearButton?.click();
+      await Promise.resolve();
+    });
+
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('ChatGPT 账号 2'));
+    expect(clearLoginProfileData).toHaveBeenCalledWith('persist:ai-multiplexer-chatgpt-account-2');
+    expect(alert).not.toHaveBeenCalled();
   });
 });

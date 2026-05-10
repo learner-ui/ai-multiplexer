@@ -35,6 +35,16 @@ describe('Electron webview navigation routing', () => {
 
   it('keeps known login flows inside the current webview', () => {
     expect(shouldKeepNavigationInWebview(
+      'https://chatgpt.com/auth/login',
+      'https://accounts.google.com/v3/signin/identifier',
+    )).toBe(true);
+
+    expect(shouldOpenInExternalBrowser(
+      'https://chatgpt.com/auth/login',
+      'https://accounts.google.com/v3/signin/identifier',
+    )).toBe(false);
+
+    expect(shouldKeepNavigationInWebview(
       'https://gemini.google.com/app',
       'https://accounts.google.com/v3/signin/identifier',
     )).toBe(true);
