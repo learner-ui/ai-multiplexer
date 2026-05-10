@@ -1,8 +1,13 @@
 {
   "name": "ai-multiplexer",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A desktop client for sending prompts to multiple AI chat services at once.",
+  "homepage": "https://github.com/learner-ui/ai-multiplexer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/learner-ui/ai-multiplexer.git"
+  },
   "author": "AI Multiplexer Contributors",
   "type": "module",
   "main": "electron/main.cjs",
